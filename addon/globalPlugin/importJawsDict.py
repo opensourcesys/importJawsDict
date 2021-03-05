@@ -12,10 +12,13 @@
 # You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+# Constants
+_TESTING_MODE = True
+
 import globalPluginHandler
 import globalVars
 import gui
-#import wx
+import wx
 import ui
 import config
 #from scriptHandler import script
@@ -49,6 +52,69 @@ class importJawsDictSettings (gui.settingsDialogs.SettingsPanel):
 
 	def onSave(self):
 		config.conf["importJawsDict"]["startInWindowsMode"] = self.startInWindowsModeCB.Value
+
+
+class DictionaryChooserPanel(wx.Panel):
+	"""Generates a wx.Panel containing elements for choosing a Jaws dictionary."""
+
+	def __init__(self, parent=None, id=wx.ID_ANY) -> None:
+		super().__init__(parent, id)
+		sizer = wx.BoxSizer(wx.HORIZONTAL)
+		# Translators: label of an edit field in Setup Import dialog to enter the path of a Jaws dictionary
+		sizer.Add(wx.StaticText(self, wx.ID_ANY, label=_("&Jaws dictionary path:")))
+		self.jDict = wx.TextCtrl(self, wx.ID_ANY)
+		sizer.Add(self.jDict)
+
+
+class SetupImportDialog(wx.Dialog):
+	"""Creates and populates the import setup dialog."""
+
+	def __init__(self, parent: Any, id: int, title: str) -> None:
+		super().__init__(parent, id, title=title)
+		self.mainSizer = wx.BoxSizer(wx.VERTICAL)
+		# Dictionary options
+		choices = (
+			# Translators: a reference to the NVDA Default speech dictionary
+			_("Default"),
+			# Translators: a reference to the NVDA Temporary speech dictionary
+			_("Temporary"),
+			# Translators: a reference to the NVDA Voice-specific speech dictionary
+			_("Voice-specific")
+		)
+		# NVDA speech dictionary selector
+		self.targetDict = wx.RadioBox(self, wx.ID_ANY, choices=choices, style=wx.RA_VERTICAL)
+		self.targetDict.Bind(wx.EVT_RADIOBOX, self.onTargetDict)
+		# In production we default to the Default dictionary, but in testing we default to Temporary
+		if _TESTING_MODE:
+			self.targetDict.SetSelection(1)  # Default to the Temporary dictionary
+		else:
+			self.targetDict.SetSelection(0)  # Default to the default dictionary
+		# File chooser
+		self.container = wx.Panel(parent=self)
+		self.panel = DictionaryChooserPanel(parent=self.container)
+		# Setup the buttons
+		buttons = self.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL | wx.HELP)
+		# Build the dialog
+		self.mainSizer.Add(self.container)
+		self.mainSizer.Add(self.targetDict)
+		self.mainSizer.Add(buttons, flag=wx.BOTTOM)
+		self.mainSizer.Fit(self)
+		self.SetSizer(self.mainSizer)
+		self.Center(wx.BOTH | WX_CENTER)
+		# Button configuration
+		ok = wx.FindWindowById(wx.ID_OK, self)
+		ok.Bind(wx.EVT_BUTTON, self.onOk)
+		help = wx.FindWindowById(wx.ID_HELP, self)
+		help.Bind(wx.EVT_BUTTON, self.onHelp)
+
+	def onHelp(self) -> None:
+		"""Shows a dialog with a help message to the user."""
+		ui.message("Not yet implemented. Try again later.")
+		log.debug("Unimplemented help button pressed.")
+
+	def onOk(self) -> None:
+		ui.message("It would have been okay, had this been implemented.")
+		log.debug("Unimplemented OK button pressed.")
 
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
@@ -90,4 +156,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			log.debug("Could not remove the Import Jaws Dictionary menu item.")
 
 	def onSetupImportDialog(self) -> None:
-		
+		"""Instantiates and manages the import setup dialog."""
+		evt.Skip()  # FixMe: document why this is here
+		# Translators: title of the import setup dialog
+		title = _("Setup your Jaws Dictionary Import")
+		dlg = SetupImportDialog(parent=gui.mainFrame, id=wx.ID_ANY, title=title)
