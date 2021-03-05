@@ -13,7 +13,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import globalPluginHandler
-#import globalVars
+import globalVars
 import gui
 #import wx
 import ui
@@ -60,9 +60,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def __init__(self) -> None:
 		"""Initializes the add-on by performing the following tasks:
+		- Checks whether running in secure mode, and stops running if so.
 		- Establishes the entry on the NVDA Tools menu.
 		"""
 		super(GlobalPlugin, self).__init__()
+		# Stop initializing if running in secure mode
+		if globalVars.appArgs.secure:
+			return
 		# Create an entry on the NVDA Tools menu
 		self.toolsMenu = gui.mainFrame.sysTrayIcon.toolsMenu
 		self.toolsMenuItem = self.toolsMenu.Append(
@@ -75,8 +79,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		gui.mainFrame.sysTrayIcon.Bind(wx.EVT_MENU, self.onSetupImportDialog, self.toolsMenuItem)
 
 	def terminate(self) -> None:
-		"""Cleans up the dialog."""
+		"""Cleans up the dialog(s)."""
 		super(GlobalPlugin, self).terminate()
+		# Check whether running in secure mode, and exit if so
+		if globalVars.appArgs.secure:
+			return
 		try:
 			self.toolsMenu.Remove(self.toolsMenuItem)
 		except (RuntimeError, AttributeError):
