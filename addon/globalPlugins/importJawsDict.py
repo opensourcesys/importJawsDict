@@ -52,7 +52,7 @@ class DictionaryChooserPanel(wx.Panel):
 class SetupImportDialog(wx.Dialog):
 	"""Creates and populates the import setup dialog."""
 
-	def __init__(self, parent: Any, id: int, title: str) -> None:
+	def __init__(self, parent, id: int, title: str) -> None:
 		super().__init__(parent, id, title=title)
 		self.mainSizer = wx.BoxSizer(wx.VERTICAL)
 		# Dictionary options
