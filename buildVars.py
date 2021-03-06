@@ -26,7 +26,7 @@ addon_info = {
 	"addon_description": _("""Reads Jaws dictionary files, and adds their entries to one of the NVDA speech dictionaries.
 Start by selecting the "Import Jaws dictionary" entry from the NVDA Tools menu."""),
 	# version
-	"addon_version": "0.4-dev",
+	"addon_version": "0.5-dev",
 	# Author(s)
 	"addon_author": "Luke Davis <luke@newanswertech.com>, Brian Vogel <britechguy@gmail.com>",
 	# URL for the add-on documentation support
@@ -51,7 +51,8 @@ Start by selecting the "Import Jaws dictionary" entry from the NVDA Tools menu."
 # pythonSources = ["addon/globalPlugins/*.py"]
 # For more information on SCons Glob expressions please take a look at:
 # https://scons.org/doc/production/HTML/scons-user/apd.html
-pythonSources = ["addon/*.py", "addon/globalPlugins/*.py"]
+pythonSources = ["addon/globalPlugin/importJawsDict.py"]
+#pythonSources = ["addon/*.py", "addon/globalPlugins/*.py"]
 
 # Files that contain strings for translation. Usually your python sources
 i18nSources = pythonSources + ["buildVars.py"]
