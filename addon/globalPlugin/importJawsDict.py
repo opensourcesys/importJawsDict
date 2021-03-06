@@ -1,4 +1,4 @@
-# Import Jaws Dictionary (importJawsDict.py), version 0.2-dev
+# Import Jaws Dictionary (importJawsDict.py), version 0.X-dev
 # A global plugin which provides a tool to import Jaws speech dictionaries into NVDA's dictionaries.
 # Written by Luke Davis, based on regular expression development performed by Brian Vogel.
 
@@ -24,34 +24,17 @@ import config
 #from scriptHandler import script
 from logHandler import log
 
-addonHandler.initTranslation()
+try:#dbg
+	addonHandler.initTranslation()
+	log.debug("#dbg. initiated translation.")
+except:#dbg
+	log.debug("#dbg. Failed to initTranslation.")
 
 #: importJawsDict Add-on config database
 config.conf.spec["importJawsDict"] = {
 	"lastPath": "boolean(default=False)",
 	"lastFile": "boolean(default=False)",
 }
-
-class importJawsDictSettings (gui.settingsDialogs.SettingsPanel):
-	"""NVDA configuration panel based configurator  for importJawsDict."""
-
-	# Translators: the label for the Import Jaws Dictionary settings category in NVDA Settings screen.
-	title = _("Import Jaws Dictionary")
-
-	def makeSettings(self, settingsSizer):
-		"""Creates a settings panel."""
-		helper = gui.guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
-		self.startInWindowsModeCB = helper.addItem(
-			wx.CheckBox(
-				self,
-				# Translators: label for a checkbox in Import Jaws Dictionary settings panel
-				label=_("Start NVDA with the numpad set to Windows nav mode")
-			)
-		)
-		self.startInWindowsModeCB.SetValue(config.conf["importJawsDict"]["startInWindowsMode"])
-
-	def onSave(self):
-		config.conf["importJawsDict"]["startInWindowsMode"] = self.startInWindowsModeCB.Value
 
 
 class DictionaryChooserPanel(wx.Panel):
@@ -129,11 +112,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		- Checks whether running in secure mode, and stops running if so.
 		- Establishes the entry on the NVDA Tools menu.
 		"""
+		log.debug("#dbg. In globalPlugin.__init__")
 		super(GlobalPlugin, self).__init__()
+		log.debug("#dbg. After super call in __init__ of globalPlugin.")
 		# Stop initializing if running in secure mode
 		if globalVars.appArgs.secure:
-			log.debug("Running in secure mode, bailing.")
+			log.debug("#dbg. Running in secure mode, bailing.")
 			return
+		else: #dbg
+			log.debug("#dbg. Not running in secure mode. Anti-bailing.")
 		# Create an entry on the NVDA Tools menu
 		self.toolsMenu = gui.mainFrame.sysTrayIcon.toolsMenu
 		self.toolsMenuItem = self.toolsMenu.Append(
@@ -144,11 +131,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			helpString=_("Import a Jaws speech dictionary into an NVDA speech dictionary")
 		)
 		gui.mainFrame.sysTrayIcon.Bind(wx.EVT_MENU, self.onSetupImportDialog, self.toolsMenuItem)
+		log.debug("#dbg. Finished __init__ of globalPlugin.")
 
 	def terminate(self):
 		"""Cleans up the dialog(s)."""
+		log.debug("#dbg. Terminating.")
 		super(GlobalPlugin, self).terminate()
-		log.debug("Terminating, but made it past super terminate.") # FixMe
+		log.debug("#dbg. Terminating, but made it past super terminate.")
 		# Check whether running in secure mode, and exit if so
 		if globalVars.appArgs.secure:
 			return
@@ -159,7 +148,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def onSetupImportDialog(self):
 		"""Instantiates and manages the import setup dialog."""
-		ui.browseableMessage("At least get the damn menu item working!\n")
+		log.debug("#dbg. In onSetupImportDialog.")
+		ui.browseableMessage("At least get the bloody menu item working!\nPlease! I'm begging!")#dbg
+		return #dbg
 		evt.Skip()  # FixMe: document why this is here
 		# Translators: title of the import setup dialog
 		title = _("Setup your Jaws Dictionary Import")
