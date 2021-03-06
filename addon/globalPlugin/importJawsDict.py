@@ -1,4 +1,4 @@
-# Import Jaws Dictionary (importJawsDict.py), version 0.1-dev
+# Import Jaws Dictionary (importJawsDict.py), version 0.2-dev
 # A global plugin which provides a tool to import Jaws speech dictionaries into NVDA's dictionaries.
 # Written by Luke Davis, based on regular expression development performed by Brian Vogel.
 
@@ -124,7 +124,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	#: Contains the name of the last dictionary file opened
 	lastFile = None
 
-	def __init__(self) -> None:
+	def __init__(self):
 		"""Initializes the add-on by performing the following tasks:
 		- Checks whether running in secure mode, and stops running if so.
 		- Establishes the entry on the NVDA Tools menu.
@@ -132,21 +132,23 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		super(GlobalPlugin, self).__init__()
 		# Stop initializing if running in secure mode
 		if globalVars.appArgs.secure:
+			log.debug("Running in secure mode, bailing.")
 			return
 		# Create an entry on the NVDA Tools menu
 		self.toolsMenu = gui.mainFrame.sysTrayIcon.toolsMenu
 		self.toolsMenuItem = self.toolsMenu.Append(
-			wx.ID_ANY,
+			wx.ID_ANY, kind=wx.ITEM_NORMAL,
 			# Translators: item in the NVDA Tools menu to open the Jaws dictionary import dialog
-			_("Import &Jaws Dictionary..."),
+			item=_("Import &Jaws Dictionary..."),
 			# Translators: tooltip for the "Import Jaws Dictionary" Tools menu item
-			_("Import a Jaws speech dictionary into an NVDA speech dictionary")
+			helpString=_("Import a Jaws speech dictionary into an NVDA speech dictionary")
 		)
 		gui.mainFrame.sysTrayIcon.Bind(wx.EVT_MENU, self.onSetupImportDialog, self.toolsMenuItem)
 
-	def terminate(self) -> None:
+	def terminate(self):
 		"""Cleans up the dialog(s)."""
 		super(GlobalPlugin, self).terminate()
+		log.debug("Terminating, but made it past super terminate.") # FixMe
 		# Check whether running in secure mode, and exit if so
 		if globalVars.appArgs.secure:
 			return
@@ -155,8 +157,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		except (RuntimeError, AttributeError):
 			log.debug("Could not remove the Import Jaws Dictionary menu item.")
 
-	def onSetupImportDialog(self) -> None:
+	def onSetupImportDialog(self):
 		"""Instantiates and manages the import setup dialog."""
+		ui.browseableMessage("At least get the damn menu item working!\n")
 		evt.Skip()  # FixMe: document why this is here
 		# Translators: title of the import setup dialog
 		title = _("Setup your Jaws Dictionary Import")
