@@ -19,7 +19,7 @@ addon_info = {
 	# Translators: Long description to be shown for this add-on on add-on information from add-ons manager
 	"addon_description": _("""Does very little."""),
 	# version
-	"addon_version": "1.4",
+	"addon_version": "1.5",
 	# Author(s)
 	"addon_author": u"Luke Davis (Open Source Systems, Ltd.) <newanswertech@gmail.com>",
 	# URL for the add-on documentation support
@@ -40,7 +40,7 @@ import os.path
 # Define the python files that are the sources of your add-on.
 # You can use glob expressions here, they will be expanded.
 pythonSources = [os.path.join("addon", "*.py"),
-os.path.join("addon", "globalPlugins", "*.py")]
+os.path.join("addon", "globalPlugin", "*.py")]
 
 # Files that contain strings for translation. Usually your python sources
 i18nSources = pythonSources + ["buildVars.py"]
