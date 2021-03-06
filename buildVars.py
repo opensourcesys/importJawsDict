@@ -36,11 +36,11 @@ Start by selecting the "Import Jaws dictionary" entry from the NVDA Tools menu."
 	# Minimum NVDA version supported (e.g. "2018.3.0", minor version is optional)
 	"addon_minimumNVDAVersion": "2019.3",
 	# Last NVDA version supported/tested (e.g. "2018.4.0", ideally more recent than minimum version)
-	"addon_lastTestedNVDAVersion": "2021.1",
+	"addon_lastTestedNVDAVersion": "2021.3",
 	# Add-on update channel (default is None, denoting stable releases,
 	# and for development releases, use "dev".)
 	# Do not change unless you know what you are doing!
-	"addon_updateChannel": "dev",
+	"addon_updateChannel": None,
 }
 
 # Define the python files that are the sources of your add-on.
