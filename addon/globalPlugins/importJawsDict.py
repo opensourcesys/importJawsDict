@@ -146,7 +146,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		except (RuntimeError, AttributeError):
 			log.debug("Could not remove the Import Jaws Dictionary menu item.")
 
-	def onSetupImportDialog(self):
+	def onSetupImportDialog(self, evt):
 		"""Instantiates and manages the import setup dialog."""
 		log.debug("#dbg. In onSetupImportDialog.")
 		ui.browseableMessage("At least get the bloody menu item working!\nPlease! I'm begging!")#dbg
