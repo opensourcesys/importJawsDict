@@ -69,9 +69,11 @@ class SetupImportDialog(wx.Dialog):
 		self.targetDict.Bind(wx.EVT_RADIOBOX, self.onTargetDict)
 		# In production we default to the Default dictionary, but in testing we default to Temporary
 		if _TESTING_MODE:
+			log.debug("#dbg. Using temp dictionary while in testing mode.")
 			self.targetDict.SetSelection(1)  # Default to the Temporary dictionary
 		else:
 			self.targetDict.SetSelection(0)  # Default to the default dictionary
+			log.debug("#dbg. Using default dictionary since not in testing mode.")
 		# File chooser
 		self.container = wx.Panel(parent=self)
 		self.panel = DictionaryChooserPanel(parent=self.container)
@@ -93,11 +95,11 @@ class SetupImportDialog(wx.Dialog):
 	def onHelp(self) -> None:
 		"""Shows a dialog with a help message to the user."""
 		ui.message("Not yet implemented. Try again later.")
-		log.debug("Unimplemented help button pressed.")
+		log.warng("Unimplemented help button pressed in SetupImportDialog.")
 
 	def onOk(self) -> None:
 		ui.message("It would have been okay, had this been implemented.")
-		log.debug("Unimplemented OK button pressed.")
+		log.warng("Unimplemented OK button pressed in SetupImportDialog.")
 
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
@@ -137,7 +139,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		"""Cleans up the dialog(s)."""
 		log.debug("#dbg. Terminating.")
 		super(GlobalPlugin, self).terminate()
-		log.debug("#dbg. Terminating, but made it past super terminate.")
 		# Check whether running in secure mode, and exit if so
 		if globalVars.appArgs.secure:
 			return
@@ -145,13 +146,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self.toolsMenu.Remove(self.toolsMenuItem)
 		except (RuntimeError, AttributeError):
 			log.debug("Could not remove the Import Jaws Dictionary menu item.")
+			pass
 
 	def onSetupImportDialog(self, evt):
 		"""Instantiates and manages the import setup dialog."""
 		log.debug("#dbg. In onSetupImportDialog.")
-		ui.browseableMessage("At least get the bloody menu item working!\nPlease! I'm begging!")#dbg
-		return #dbg
 		evt.Skip()  # FixMe: document why this is here
 		# Translators: title of the import setup dialog
 		title = _("Setup your Jaws Dictionary Import")
 		dlg = SetupImportDialog(parent=gui.mainFrame, id=wx.ID_ANY, title=title)
+		dlg.show()
