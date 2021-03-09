@@ -105,9 +105,9 @@ class SetupImportDialog(wx.Dialog):
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	#: Contains the path of the last dictionary opened
-	lastPath = None
+	lastPath = ""
 	#: Contains the name of the last dictionary file opened
-	lastFile = None
+	lastFile = ""
 
 	def __init__(self):
 		"""Initializes the add-on by performing the following tasks:
@@ -149,6 +149,33 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			pass
 
 	def onSetupImportDialog(self, evt):
+		"""Instantiates and manages the user interaction dialogs."""
+		log.debug("#dbg. In onSetupImportDialog.")
+		evt.Skip()  # FixMe: document why this is here
+		# FixMe: there should be a text dialog here explaining to the user what's about to happn.
+		# Ask for the dictionary
+		with wx.FileDialog(
+			gui.mainFrame,
+			# Translators: the title of the dictionary selector dialog
+			_("Step 1: select a Jaws dictionary"),
+			self.lastPath, self.lastFile,
+			wildcard="Jaws Dictionary Files (*.dic)|*.dic",
+			style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST
+		) as fileDialog:
+			# Show the dialog and react to cancel
+			if fileDialog.ShowModal() == wx.ID_CANCEL:
+				return
+			# Obtain the selected path
+			path = fileDialog.GetPath()
+			# Read the dictionary into a variable
+			#try:
+				#with open(path, "r") as dictFile:
+					# Do something
+				#except IOError:
+					# an error
+		fileDialog.Destroy()
+
+	def onSetupImportDialog_old(self, evt):
 		"""Instantiates and manages the import setup dialog."""
 		log.debug("#dbg. In onSetupImportDialog.")
 		evt.Skip()  # FixMe: document why this is here
