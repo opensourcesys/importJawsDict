@@ -15,13 +15,14 @@
 # Constants
 _TESTING_MODE = True
 
+import ntpath
+import wx
+import gui
+
 import globalPluginHandler
 import globalVars
-import gui
-import wx
 import ui
 import config
-#from scriptHandler import script
 from logHandler import log
 
 try:#dbg
@@ -132,7 +133,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			# Translators: tooltip for the "Import Jaws Dictionary" Tools menu item
 			helpString=_("Import a Jaws speech dictionary into an NVDA speech dictionary")
 		)
-		gui.mainFrame.sysTrayIcon.Bind(wx.EVT_MENU, self.onSetupImportDialog, self.toolsMenuItem)
+		gui.mainFrame.sysTrayIcon.Bind(wx.EVT_MENU, self.onMultiStepImport, self.toolsMenuItem)
 		log.debug("#dbg. Finished __init__ of globalPlugin.")
 
 	def terminate(self):
@@ -148,7 +149,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			log.debug("Could not remove the Import Jaws Dictionary menu item.")
 			pass
 
-	def onSetupImportDialog(self, evt):
+	def onMultiStepImport(self, evt):
 		"""Instantiates and manages the user interaction dialogs."""
 		log.debug("#dbg. In onSetupImportDialog.")
 		evt.Skip()  # FixMe: document why this is here
@@ -156,24 +157,58 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# Ask for the dictionary
 		with wx.FileDialog(
 			gui.mainFrame,
-			# Translators: the title of the dictionary selector dialog
+			# Translators: the title of the Jaws dictionary file selector dialog.
 			_("Step 1: select a Jaws dictionary"),
 			self.lastPath, self.lastFile,
-			wildcard="Jaws Dictionary Files (*.dic)|*.dic",
+			wildcard="Jaws Dictionary Files (*.jdf)|*.jdf|All files (*.*)|*.*",
 			style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST
-		) as fileDialog:
+		) as sourceChooser:
 			# Show the dialog and react to cancel
-			if fileDialog.ShowModal() == wx.ID_CANCEL:
+			if sourceChooser.ShowModal() == wx.ID_CANCEL:
 				return
-			# Obtain the selected path
-			path = fileDialog.GetPath()
-			# Read the dictionary into a variable
-			#try:
-				#with open(path, "r") as dictFile:
-					# Do something
+			# Obtain the selected path and file
+			path, file = ntpath.split(ntpath.normpath(sourceChooser.GetPath()))
+		# Dictionary options
+		choices = (
+			# Translators: a reference to the NVDA Default speech dictionary
+			_("Default"),
+			# Translators: a reference to the NVDA Temporary speech dictionary
+			_("Temporary"),
+			# Translators: a reference to the NVDA Voice-specific speech dictionary
+			_("Voice-specific")
+		)
+		# Ask the user which dictionary to use
+		with wx.SingleChoiceDialog(
+			gui.mainFrame,
+			# Translators: the descriptive message shown to the user, asking
+			# which target NVDA dictionary they wish to use.
+			_(
+				"Step 2: select the target NVDA dictionary where you would like "
+				"the entries from the Jaws dictionary to be placed."
+			),
+			# Translators: the title of the NVDA dictionary selector dialog
+			_("Choose the target dictionary"),
+			choices, wx.OK|wx.CANCEL|wx.CENTRE
+		) as targetChooser:
+		# In production we default to the Default dictionary, but in testing we default to Temporary
+			if _TESTING_MODE:
+				log.debug("#dbg. Using temp dictionary while in testing mode.")
+				targetChooser.SetSelection(1)  # Default to the Temporary dictionary
+			else:
+				targetChooser.SetSelection(0)  # Default to the default dictionary
+				log.debug("#dbg. Using default dictionary since not in testing mode.")
+			# Show the dialog and react to cancel
+			if targetChooser.ShowModal() == wx.ID_CANCEL:
+				# Start over with the file chooser, as if the button was "back", not "cancel".
+				self.onMultiStepImport(evt)
+				return
+			targetDict = targetChooser.GetStringSelection()  # Record the choice
+		# Read the dictionary into a variable
+		#try:
+			#with open(path, "r") as dictFile:
+				# Do something
 				#except IOError:
-					# an error
-		fileDialog.Destroy()
+				# an error
 
 	def onSetupImportDialog_old(self, evt):
 		"""Instantiates and manages the import setup dialog."""
