@@ -102,10 +102,13 @@ class SetupImportDialog(wx.Dialog):
 		ui.message("It would have been okay, had this been implemented.")
 		log.warng("Unimplemented OK button pressed in SetupImportDialog.")
 
+#: A simple exception which is raised if the user cancels a multi step dialog
+class UserCanceled(Exception):
+	pass
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
-	# Constant tuple of the NVDA speech dictionaries
+	#: Constant tuple of the NVDA speech dictionaries
 	NVDA_DICTS = (
 		# Translators: a reference to the NVDA Default speech dictionary
 		_("Default dictionary"),
@@ -114,7 +117,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# Translators: a reference to the NVDA Temporary speech dictionary
 		_("Temporary dictionary")
 	)
-
 
 	#: Contains the path of the last dictionary opened
 	lastPath = ""
@@ -161,20 +163,22 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def onMultiStepImport(self, evt):
 		"""Instantiates and manages the user interaction dialogs."""
-		log.debug("#dbg. In onSetupImportDialog.")
 		evt.Skip()  # FixMe: document why this is here
-		# FixMe: there should be a text dialog here explaining to the user what's about to happn.
-		# Step 1: get the source dictionary, or exit on user cancel
-		if self.askForSource() is False:
-			return
-		# Step 2: get the target dictionary, or exit on user cancel
-		if self.askForTarget() is False:
+		# Each of these has the potential to be cancelled by the user, which will raise UserCancelException
+		try:
+			# FixMe: there should be a text dialog here explaining to the user what's about to happn.
+			# Step 1: get the source dictionary
+			path, file = self.askForSource()
+			# Step 2: get the target dictionary
+			#: An int that is an index into self.NVDA_DICTS
+			targetDict = self.askForTarget()
+		except UserCanceled:
 			return
 
 	def askForSource(self):
 		"""Shows a file chooser dialog asking for a Jaws dictionary.
-		Sets self.path and self.file with the selected path and file.
-		Returns True if it got a path; False if the user cancelled.
+		Raises UserCanceled if the user cancels.
+		Returns a tuple containing the path and filename.
 		"""  # FixMe: proper docstring needed
 		with wx.FileDialog(
 			gui.mainFrame,
@@ -186,15 +190,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		) as sourceChooser:
 			# Show the dialog and react to cancel
 			if sourceChooser.ShowModal() == wx.ID_CANCEL:
-				return False
-			# Obtain the selected path and file
-			self.path, self.file = ntpath.split(ntpath.normpath(sourceChooser.GetPath()))
-			return True
+				raise UserCanceled
+			else:
+				# Return the selected path and file
+				return ntpath.split(ntpath.normpath(sourceChooser.GetPath()))
 
 	def askForTarget(self):
 		"""Shows a dialog with a list of possible NVDA dictionaries for the user to choose from.
-		Sets self.targetDict with the result (an index into self.NVDA_DICTS).
-		Returns False on user cancel, True otherwise.
+		Raises UserCanceled if the user does.
+		Returns the result (an index into self.NVDA_DICTS).
 		""" # FixMe: needs a real docstring
 		# Ask the user which dictionary to use
 		with wx.SingleChoiceDialog(
@@ -211,15 +215,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		) as targetChooser:
 		# In production we default to the Default dictionary, but in testing we default to Temporary
 			if _TESTING_MODE:
-				log.debug("#dbg. Using temp dictionary while in testing mode.")
 				targetChooser.SetSelection(2)
 			else:
 				targetChooser.SetSelection(0)
-				log.debug("#dbg. Using default dictionary since not in testing mode.")
 			# Show the dialog and react to cancel
 			if targetChooser.ShowModal() == wx.ID_CANCEL:
-				return False
-			targetDict = targetChooser.GetSelection()  # Record the choice
+				raise UserCanceled
+			else:
+				return targetChooser.GetSelection()
 
 	def next(self):
 		pass
