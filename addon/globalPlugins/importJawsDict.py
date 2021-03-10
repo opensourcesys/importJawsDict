@@ -15,10 +15,13 @@
 # Constants
 _TESTING_MODE = True
 
-import ntpath
 import wx
 import gui
+import ntpath
+import re
+from collections import deque
 
+import addonHandler
 import globalPluginHandler
 import globalVars
 import ui
@@ -37,6 +40,87 @@ config.conf.spec["importJawsDict"] = {
 	"lastFile": "boolean(default=False)",
 }
 
+class DictItem:
+	"""Objects of this class represent a single dictionary item during the transition from JDF to NVDA.
+	It is intended to be initialized with a JDF item, and to organize itself appropriately for an NVDA
+	dictionary item. It is expected that these will be used in an iterated deque or list.
+
+	For reference, the JDF record spec is:
+	Each record begins and ends with a separator, either a period or a comma.
+	That same separator is then used to separate the other fields on the line.
+	If * appears in the first field, it represents a wildcard within a whole word context.
+	If a * appears in the third through fifth fields, it represents any value.
+	The fields are:
+	Actual word
+	Replacement word
+	Language (0X09 for English)
+	Synthesizer
+	Voice
+	[Synth Voice] Language (0 is default)
+	Case sensitive (0: False, 1: True)
+	"""
+
+	#: Constant containing a regular expression used for splitting JDF rules
+	SPLIT_EXP = re.compile(
+		# The field separator. Hereinafter: \1
+		r"^(.)"
+		# from: The word that is being pronounced incorrectly; this may contain a regular expression
+		r"(?P<from>.*[^\1])\1"
+		# to: The word that should be spoken
+		r"(?P<to>.*[^\1])\1"
+		# lang: Contains the text of the language specified in the JDF rule
+		r"(?P<lang>.*[^\1])\1"
+		# synth: Contains the name of any synthesizer the JDF specifies for this rule
+		r"(?P<synth>.*[^\1])\1"
+		# voice: Contains the name of any synthesizer voice the JDF specifies for this rule
+		r"(?P<voice>.*[^\1])\1"
+		# voiceLang: we ignore this numeric field
+		r"(?:[0-9\*]+)\1"
+		# case: An int (later boolean) specifying whether the "from" word is case sensitive
+		r"(?P<case>[01])\1$"
+	)
+	#: Constant containing a regex for matching correctly formatted JDF records
+	RECORD_EXP = re.compile(r"^(.).*\1.*\1.*\1.*\1.*\1[0-9]+\1[01]\1$")
+	# FixMe: we no longer use RECORD_EXP
+
+
+	def __init__(self, jdfLine: str = None) -> None:
+		"""Creates a DictItem object.
+		jdfLine: a line taken directly from a JDF file, with no start/end whitespace.
+		""" # FixMe: needs a proper docstring. Needs proper kwargs.
+		self.isValid = False  # Fixed by self.process(), if validity is deserved
+		self.parseJDFLine(jdfLine)
+		# However it gets setup (only one way currently), we need to process the values.
+		self.process()
+
+	def parseJDFLine(self, line: str) -> None:
+		"""Takes a stripp()ed line from a JDF file, and assigns its various fields to this object's vars.
+		If what it receives is None, it raises an AttributeError.
+		If it receives text that is a comment, or doesn't parse as a JDF record, it raises a ValueError.
+		"""
+		# Sanity checks
+		if line is None:
+			raise AttributeError("None is not a valid JDF line.")
+		elif line == "":
+			raise ValueError("The provided line is empty.")
+		# Match the line against the format of a valid record.
+		# All JDF lines must start, contain repeatedly, and end with, their field separator.
+		# This also gets the groups, for later processing.
+		elif record = SPLIT_EXP.fullmatch(line) is None:
+			raise ValueError(f"The provided line ({line}), doesn't match the format of a proper record.")
+		# Process the record into this object
+		log.debug(f"#dbg. Line: {line}")
+		for field, value in record.groupdict().values():
+			log.debug(f'#dbg. Setting self.{field} to "{value}"')
+			setattr(self, field, value)
+
+	def process(self) -> None:
+		"""Once the object has been setup, this makes its values useful.
+		Reshapes provided values to be Pythonic and NVDAish.
+		Should be called last before the object is stored.
+		Raises ValueError for any unset or incorrect values.
+		"""
+		#
 
 class DictionaryChooserPanel(wx.Panel):
 	"""Generates a wx.Panel containing elements for choosing a Jaws dictionary."""
@@ -172,6 +256,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			# Step 2: get the target dictionary
 			#: An int that is an index into self.NVDA_DICTS
 			targetDict = self.askForTarget()
+			# Read the source dictionary into a plugin level list
 		except UserCanceled:
 			return
 
