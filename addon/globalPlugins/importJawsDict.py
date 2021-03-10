@@ -105,6 +105,17 @@ class SetupImportDialog(wx.Dialog):
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
+	# Constant tuple of the NVDA speech dictionaries
+	NVDA_DICTS = (
+		# Translators: a reference to the NVDA Default speech dictionary
+		_("Default dictionary"),
+		# Translators: a reference to the NVDA Voice-specific speech dictionary
+		_("Voice dictionary"),
+		# Translators: a reference to the NVDA Temporary speech dictionary
+		_("Temporary dictionary")
+	)
+
+
 	#: Contains the path of the last dictionary opened
 	lastPath = ""
 	#: Contains the name of the last dictionary file opened
@@ -147,14 +158,24 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self.toolsMenu.Remove(self.toolsMenuItem)
 		except (RuntimeError, AttributeError):
 			log.debug("Could not remove the Import Jaws Dictionary menu item.")
-			pass
 
 	def onMultiStepImport(self, evt):
 		"""Instantiates and manages the user interaction dialogs."""
 		log.debug("#dbg. In onSetupImportDialog.")
 		evt.Skip()  # FixMe: document why this is here
 		# FixMe: there should be a text dialog here explaining to the user what's about to happn.
-		# Ask for the dictionary
+		# Step 1: get the source dictionary, or exit on user cancel
+		if self.askForSource() is False:
+			return
+		# Step 2: get the target dictionary, or exit on user cancel
+		if self.askForTarget() is False:
+			return
+
+	def askForSource(self):
+		"""Shows a file chooser dialog asking for a Jaws dictionary.
+		Sets self.path and self.file with the selected path and file.
+		Returns True if it got a path; False if the user cancelled.
+		"""  # FixMe: proper docstring needed
 		with wx.FileDialog(
 			gui.mainFrame,
 			# Translators: the title of the Jaws dictionary file selector dialog.
@@ -165,18 +186,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		) as sourceChooser:
 			# Show the dialog and react to cancel
 			if sourceChooser.ShowModal() == wx.ID_CANCEL:
-				return
+				return False
 			# Obtain the selected path and file
-			path, file = ntpath.split(ntpath.normpath(sourceChooser.GetPath()))
-		# Dictionary options
-		choices = (
-			# Translators: a reference to the NVDA Default speech dictionary
-			_("Default"),
-			# Translators: a reference to the NVDA Temporary speech dictionary
-			_("Temporary"),
-			# Translators: a reference to the NVDA Voice-specific speech dictionary
-			_("Voice-specific")
-		)
+			self.path, self.file = ntpath.split(ntpath.normpath(sourceChooser.GetPath()))
+			return True
+
+	def askForTarget(self):
+		"""Shows a dialog with a list of possible NVDA dictionaries for the user to choose from.
+		Sets self.targetDict with the result (an index into self.NVDA_DICTS).
+		Returns False on user cancel, True otherwise.
+		""" # FixMe: needs a real docstring
 		# Ask the user which dictionary to use
 		with wx.SingleChoiceDialog(
 			gui.mainFrame,
@@ -188,21 +207,22 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			),
 			# Translators: the title of the NVDA dictionary selector dialog
 			_("Choose the target dictionary"),
-			choices, wx.OK|wx.CANCEL|wx.CENTRE
+			self.NVDA_DICTS, wx.OK|wx.CANCEL|wx.CENTRE
 		) as targetChooser:
 		# In production we default to the Default dictionary, but in testing we default to Temporary
 			if _TESTING_MODE:
 				log.debug("#dbg. Using temp dictionary while in testing mode.")
-				targetChooser.SetSelection(1)  # Default to the Temporary dictionary
+				targetChooser.SetSelection(2)
 			else:
-				targetChooser.SetSelection(0)  # Default to the default dictionary
+				targetChooser.SetSelection(0)
 				log.debug("#dbg. Using default dictionary since not in testing mode.")
 			# Show the dialog and react to cancel
 			if targetChooser.ShowModal() == wx.ID_CANCEL:
-				# Start over with the file chooser, as if the button was "back", not "cancel".
-				self.onMultiStepImport(evt)
-				return
-			targetDict = targetChooser.GetStringSelection()  # Record the choice
+				return False
+			targetDict = targetChooser.GetSelection()  # Record the choice
+
+	def next(self):
+		pass
 		# Read the dictionary into a variable
 		#try:
 			#with open(path, "r") as dictFile:
