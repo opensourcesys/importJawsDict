@@ -441,8 +441,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			"but which were not recognized as Jaws speech dictionary records.<br/>\n"
 			"You can use normal Windows controls to select and copy these to the clipboard, so you can "
 			"save them in a file to try to fix them later, if they are supposed to be valid entries.</p>\n"
-			"<p>You may also <a href="mailto:luke@newanswertech.com">email them</a> to the add-on authors to "
-			"review, if you think this is a bug or that these entries should have been recognized.</p>\n"
+			"<p>You may also <a href=\"mailto:luke@newanswertech.com\">email them</a> to the add-on authors"
+			" to review, if you think this is a bug or that these entries should have been recognized.</p>\n"
 			"<p>To return to the import, press Alt+F4 to close this window.</p>\n&nbsp;<br/>\n<hr>\n<pre>\n"
 		).format(self.lineCount - self.recordCount, pathAndFile)
 		# Add each of the bad lines to the message
