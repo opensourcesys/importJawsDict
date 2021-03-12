@@ -108,7 +108,7 @@ class SpeechDictItem:
 		"""
 		# Sanity check
 		if line is None:
-		log.debug("#dbg. Line was None.")
+			log.debug("#dbg. Line was None.")
 			raise AttributeError("None is not a valid JDF line.")
 		# Match the line against the format of a valid record.
 		# All JDF lines must start, contain repeatedly, and end with, their field separator.
