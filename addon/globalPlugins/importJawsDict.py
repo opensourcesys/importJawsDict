@@ -372,7 +372,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		#: Holds the count of successfully discovered records
 		self.recordCount: int = 0
 		# Open the JDF
-		with open(pathAndFile, "r") as jdf:
+		with open(pathAndFile, "r", encoding="utf-8") as jdf:
 			# Iterate each line of the file
 			for line in jdf:
 				lineCount += 1
