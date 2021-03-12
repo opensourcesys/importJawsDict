@@ -378,10 +378,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self.lineCount += 1
 				# Attempt to put the line in the deque of records
 				try:
-					self.importables.Append(SpeechDictItem(line))
+					self.importables.append(SpeechDictItem(line))
 					self.recordCount += 1
 				except ValueError:  # Raised if the line's format wasn't a record
-					unimportables.Append(line)  # Add it to the list to be handled later
+					unimportables.append(line)  # Add it to the list to be handled later
 
 	def confirmImportSimple(self, pathAndFile: str) -> None:
 		"""Displays stats to the user on successful file read. Confirms continuance."""
