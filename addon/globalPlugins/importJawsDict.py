@@ -404,7 +404,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			else:
 				return
 
-	def confirmImportWithBads(self, pathAndFile: str) -> None:
+	def confirmImportWithBads(self, file: str) -> None:
 		"""Shows the import statistics in cases where there was a lines to records mismatch.
 		Asks the user whether to continue, cancel, or show the difficult lines.
 		"""
@@ -417,7 +417,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				"\nYou can import those {2} records into NVDA's {3},\n"
 				"you can review the lines that weren't recognized then decide what to do,\n"
 				"or you can cancel the import."
-			).format(self.lineCount, pathAndFile, self.recordCount, self.NVDA_DICTS[self.targetDict]),
+			).format(self.lineCount, file, self.recordCount, self.NVDA_DICTS[self.targetDict]),
 			# Translators: title of the Found Records Dialog
 			caption=_("Step 3: Confirm or Review Import"),
 			style=wx.YES_NO|wx.CANCEL|wx.NO_DEFAULT
@@ -444,7 +444,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			"<p>You may also <a href=\"mailto:luke@newanswertech.com\">email them</a> to the add-on authors"
 			" to review, if you think this is a bug or that these entries should have been recognized.</p>\n"
 			"<p>To return to the import, press Alt+F4 to close this window.</p>\n&nbsp;<br/>\n<hr>\n<pre>\n"
-		).format(self.lineCount - self.recordCount, pathAndFile)
+		).format(self.lineCount - self.recordCount, file)
 		# Add each of the bad lines to the message
 		for line in self.unimportables:
 			msg += line + "\n"
@@ -455,6 +455,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			# Translators: title of the dialog containing the list of JDF lines which couldn't be imported
 			title=_("Review Dictionary Entries That Can't Be Imported, Alt+F4 when done")
 		)
+		# And now, we must call ourselves.
+		self.confirmImportWithBads(file)
 
 	# Unused code
 	def onSetupImportDialog_old(self, evt):
