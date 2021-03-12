@@ -110,7 +110,7 @@ class SpeechDictItem:
 		# Match the line against the format of a valid record.
 		# All JDF lines must start, contain repeatedly, and end with, their field separator.
 		# This also gets the groups, for later processing.
-		record = RECORD_EXP.fullmatch(strip(line))
+		record = self.RECORD_EXP.fullmatch(line.strip())
 		if record is None:
 			raise ValueError(f"The provided line ({line}), doesn't match the format of a proper record.")
 		# Process the record into this object
