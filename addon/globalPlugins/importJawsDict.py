@@ -293,7 +293,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			file = self.askForSource()
 			# Step 2: get the target dictionary
 			#: An int that is an index into self.NVDA_DICTS
-			targetDict = self.askForTarget()
+			self.targetDict = self.askForTarget()
 			# Import from the selected file and handle the result
 			self.importFromFile(file)
 			# Determine which stats dialog to show, based on line count to record count comparison
