@@ -31,6 +31,7 @@ from logHandler import log
 
 try:#dbg
 	addonHandler.initTranslation()
+	log.debug("#dbg. Can translate now.")
 except:#dbg
 	log.debug("#dbg. Failed to initTranslation.")
 
@@ -95,6 +96,7 @@ class SpeechDictItem:
 		jdfLine: a line taken directly from a JDF file, with no start/end whitespace.
 		""" # FixMe: needs a proper docstring. Needs proper kwargs.
 		self.isValid = False  # Fixed by self.process(), if validity is deserved
+		log.debug(f"#dbg. Creating a record for:\n{jdfLine}")
 		self.parseJDFLine(jdfLine)
 		# However it gets setup (only one way currently), we need to process the values.
 		self.process()
@@ -106,11 +108,13 @@ class SpeechDictItem:
 		"""
 		# Sanity check
 		if line is None:
+		log.debug("#dbg. Line was None.")
 			raise AttributeError("None is not a valid JDF line.")
 		# Match the line against the format of a valid record.
 		# All JDF lines must start, contain repeatedly, and end with, their field separator.
 		# This also gets the groups, for later processing.
 		record = self.RECORD_EXP.fullmatch(line.strip())
+		log.debug(f"#dbg. Using pattern: {record.re.pattern}")
 		if record is None:
 			raise ValueError(f"The provided line ({line}), doesn't match the format of a proper record.")
 		# Process the record into this object
