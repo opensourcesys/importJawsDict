@@ -298,9 +298,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self.importFromFile(file)
 			# Determine which stats dialog to show, based on line count to record count comparison
 			if self.lineCount == self.recordCount:
-				self.confirmImportSimple(path + file)  # All lines are records
+				self.confirmImportSimple(file)  # All lines are records
 			elif self.lineCount > self.recordCount:
-				self.confirmImportWithBads(path + file)  # Some lines aren't records
+				self.confirmImportWithBads(file)  # Some lines aren't records
 		except UserCanceled:
 			return
 		except (FileNotFoundError, IOError) as fnf:
@@ -404,7 +404,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			else:
 				return
 
-	def confirmImportsWithBads(self, pathAndFile: str) -> None:
+	def confirmImportWithBads(self, pathAndFile: str) -> None:
 		"""Shows the import statistics in cases where there was a lines to records mismatch.
 		Asks the user whether to continue, cancel, or show the difficult lines.
 		"""
