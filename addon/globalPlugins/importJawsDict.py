@@ -290,12 +290,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		try:
 			# FixMe: there should be a text dialog here explaining to the user what's about to happn.
 			# Step 1: get the source dictionary
-			path, file = self.askForSource()
+			file = self.askForSource()
 			# Step 2: get the target dictionary
 			#: An int that is an index into self.NVDA_DICTS
 			targetDict = self.askForTarget()
 			# Import from the selected file and handle the result
-			self.importFromFile(path + file)
+			self.importFromFile(file)
 			# Determine which stats dialog to show, based on line count to record count comparison
 			if self.lineCount == self.recordCount:
 				self.confirmImportSimple(path + file)  # All lines are records
@@ -307,10 +307,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			log.debug(f"#dbg. Got a file not found error for: {path}{file}")
 			return  # FixMe: need real dialog code here
 
-	def askForSource(self):
+	def askForSource(self) -> str:
 		"""Shows a file chooser dialog asking for a Jaws dictionary.
-		Raises UserCanceled if the user cancels.
-		Returns a tuple containing the path and filename.
+		Raises UserCancelException if the user cancels.
+		Returns a string containing the path of the file chosen.
 		"""  # FixMe: proper docstring needed
 		with wx.FileDialog(
 			gui.mainFrame,
@@ -322,10 +322,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		) as sourceChooser:
 			# Show the dialog and react to cancel
 			if sourceChooser.ShowModal() == wx.ID_CANCEL:
-				raise UserCanceled
+				raise UserCancelException
 			else:
-				# Return the selected path and file
-				return ntpath.split(ntpath.normpath(sourceChooser.GetPath()))
+				# Return the selected file
+				return ntpath.normpath(sourceChooser.GetPath())
 
 	def askForTarget(self):
 		"""Shows a dialog with a list of possible NVDA dictionaries for the user to choose from.
@@ -364,7 +364,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		""" # FixMe: needs a better docstring
 		log.debug(f'#dbg. In importFromFile("{pathAndFile})')
 		#: Holds the list of validated speech dict entries
-		self.importables: collections.deque = collections.deque()
+		self.importables: deque = deque()
 		#: Holds the list of rejected lines
 		self.unimportables: list = []
 		#: Holds the count of lines found, no matter their disposition
