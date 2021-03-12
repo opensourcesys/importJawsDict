@@ -19,6 +19,7 @@ import wx
 import gui
 import ntpath
 import re
+import contextlib
 from collections import deque
 
 import addonHandler
@@ -30,7 +31,6 @@ from logHandler import log
 
 try:#dbg
 	addonHandler.initTranslation()
-	log.debug("#dbg. initiated translation.")
 except:#dbg
 	log.debug("#dbg. Failed to initTranslation.")
 
@@ -40,49 +40,55 @@ config.conf.spec["importJawsDict"] = {
 	"lastFile": "boolean(default=False)",
 }
 
-class DictItem:
+class SpeechDictItem:
 	"""Objects of this class represent a single dictionary item during the transition from JDF to NVDA.
 	It is intended to be initialized with a JDF item, and to organize itself appropriately for an NVDA
 	dictionary item. It is expected that these will be used in an iterated deque or list.
 
 	For reference, the JDF record spec is:
-	Each record begins and ends with a separator, either a period or a comma.
+	Each record begins and ends with a separator. The separator is a punctuation such as ".", ",", "!",
+	or maybe others--Jaws seems to look for punctuation missing from the actual or replacement words.
 	That same separator is then used to separate the other fields on the line.
-	If * appears in the first field, it represents a wildcard within a whole word context.
+	If * appears in the first field, it represents a wildcard within a whole word context. (unconfirmed!)
 	If a * appears in the third through fifth fields, it represents any value.
 	The fields are:
 	Actual word
 	Replacement word
-	Language (0X09 for English)
+	Language (known codes below)
 	Synthesizer
 	Voice
-	[Synth Voice] Language (0 is default)
+	Output Language (0 is default)
 	Case sensitive (0: False, 1: True)
+	Known input word languages:
+	*: any
+	0x07: German
+	0x09: English
+	0x10: Italian
+	0x16: Portuguese
+	0x0a: Spanish
+	0x0b: Finnish
+	0x0c: French
 	"""
 
-	#: Constant containing a regular expression used for splitting JDF rules
-	SPLIT_EXP = re.compile(
+	#: Constant containing a regular expression used for verifying and splitting JDF rules
+	RECORD_EXP = re.compile(
 		# The field separator. Hereinafter: \1
 		r"^(.)"
-		# from: The word that is being pronounced incorrectly; this may contain a regular expression
-		r"(?P<from>.*[^\1])\1"
-		# to: The word that should be spoken
-		r"(?P<to>.*[^\1])\1"
-		# lang: Contains the text of the language specified in the JDF rule
-		r"(?P<lang>.*[^\1])\1"
+		# inWord: The word that is being pronounced incorrectly
+		r"(?P<inWord>.+[^\1])\1"
+		# outWord: The word that should be spoken
+		r"(?P<outWord>.+[^\1])\1"
+		# lang: Contains the code for the language specified in the JDF rule, or *
+		r"(?P<lang>[0-9a-zA-Z\*]+)\1"
 		# synth: Contains the name of any synthesizer the JDF specifies for this rule
-		r"(?P<synth>.*[^\1])\1"
+		r"(?P<synth>.+[^\1])\1"
 		# voice: Contains the name of any synthesizer voice the JDF specifies for this rule
-		r"(?P<voice>.*[^\1])\1"
-		# voiceLang: we ignore this numeric field
+		r"(?P<voice>.+[^\1])\1"
+		# outLang: we ignore the output language
 		r"(?:[0-9\*]+)\1"
-		# case: An int (later boolean) specifying whether the "from" word is case sensitive
+		# case: An int (later boolean) specifying whether the inWord is case sensitive
 		r"(?P<case>[01])\1$"
 	)
-	#: Constant containing a regex for matching correctly formatted JDF records
-	RECORD_EXP = re.compile(r"^(.).*\1.*\1.*\1.*\1.*\1[0-9]+\1[01]\1$")
-	# FixMe: we no longer use RECORD_EXP
-
 
 	def __init__(self, jdfLine: str = None) -> None:
 		"""Creates a DictItem object.
@@ -94,19 +100,18 @@ class DictItem:
 		self.process()
 
 	def parseJDFLine(self, line: str) -> None:
-		"""Takes a stripp()ed line from a JDF file, and assigns its various fields to this object's vars.
+		"""Takes a line from a JDF file, and assigns its various fields to this object's vars.
 		If what it receives is None, it raises an AttributeError.
 		If it receives text that is a comment, or doesn't parse as a JDF record, it raises a ValueError.
 		"""
-		# Sanity checks
+		# Sanity check
 		if line is None:
 			raise AttributeError("None is not a valid JDF line.")
-		elif line == "":
-			raise ValueError("The provided line is empty.")
 		# Match the line against the format of a valid record.
 		# All JDF lines must start, contain repeatedly, and end with, their field separator.
 		# This also gets the groups, for later processing.
-		elif record = SPLIT_EXP.fullmatch(line) is None:
+		record = RECORD_EXP.fullmatch(strip(line))
+		if record is None:
 			raise ValueError(f"The provided line ({line}), doesn't match the format of a proper record.")
 		# Process the record into this object
 		log.debug(f"#dbg. Line: {line}")
@@ -117,11 +122,43 @@ class DictItem:
 	def process(self) -> None:
 		"""Once the object has been setup, this makes its values useful.
 		Reshapes provided values to be Pythonic and NVDAish.
+		Does any other kind of processing necessary to make the values useful.
 		Should be called last before the object is stored.
 		Raises ValueError for any unset or incorrect values.
 		"""
-		#
+		log.debug(f"#dbg. Processing: {self.__dict__}")
+		# Comments with each conditional explain what we're looking for.
+		self.isValid = False
+		# Needs to contain at least one character
+		if self.inWord is None or len(self.inWord) < 1:
+			raise ValueError('Record has no "in" word.')
+		if self.outWord is None:
+			raise ValueError('Record has no "out" word.')
+		# Removes any sound related XML from the outWord, then checks length
+		self.outWord = re.sub(r"<sound +.*?/>", "", self.outWord, flags=re.IGNORECASE)
+		if len(self.outWord) < 1:
+			raise ValueError('After processing, record has no "out" word.')
+		with contextlib.suppress(AttributeError):  # Some of these might be unset, but we don't care
+			# If language is empty or set to any (*), set it to None
+			if self.lang == "" or self.lang == "*":
+				self.lang = None
+			# if synth is empty or set to any (*), set it to None
+			if self.synth == "" or self.synth == "*":
+				self.synth = None
+			# If voice is empty or set to any (*), set it to None
+			if self.voice == "" or self.voice == "*":
+				self.voice = None
+			# Case is either 0 (False), 1 (True), "" (False), or None. Make it a bool instead
+			if self.case is not None and self.case == "1":
+				self.case = True
+			else:
+				self.case = False
+		# The processing is done. If we got this far, we have a valid object.
+		self.isValid = True
+		log.debug(f"#dbg. Processed: {self.__dict__}")
 
+
+# Not currently used
 class DictionaryChooserPanel(wx.Panel):
 	"""Generates a wx.Panel containing elements for choosing a Jaws dictionary."""
 
@@ -133,7 +170,7 @@ class DictionaryChooserPanel(wx.Panel):
 		self.jDict = wx.TextCtrl(self, wx.ID_ANY)
 		sizer.Add(self.jDict)
 
-
+# Not currently used
 class SetupImportDialog(wx.Dialog):
 	"""Creates and populates the import setup dialog."""
 
@@ -186,8 +223,8 @@ class SetupImportDialog(wx.Dialog):
 		ui.message("It would have been okay, had this been implemented.")
 		log.warng("Unimplemented OK button pressed in SetupImportDialog.")
 
-#: A simple exception which is raised if the user cancels a multi step dialog
 class UserCanceled(Exception):
+	"""A simple exception which is raised if the user cancels a multi step dialog."""
 	pass
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
@@ -222,15 +259,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		else: #dbg
 			log.debug("#dbg. Not running in secure mode. Anti-bailing.")
 		# Create an entry on the NVDA Tools menu
-		self.toolsMenu = gui.mainFrame.sysTrayIcon.toolsMenu
-		self.toolsMenuItem = self.toolsMenu.Append(
+		self.outWordolsMenu = gui.mainFrame.sysTrayIcon.toolsMenu
+		self.outWordolsMenuItem = self.outWordolsMenu.Append(
 			wx.ID_ANY, kind=wx.ITEM_NORMAL,
 			# Translators: item in the NVDA Tools menu to open the Jaws dictionary import dialog
 			item=_("Import &Jaws Dictionary..."),
 			# Translators: tooltip for the "Import Jaws Dictionary" Tools menu item
 			helpString=_("Import a Jaws speech dictionary into an NVDA speech dictionary")
 		)
-		gui.mainFrame.sysTrayIcon.Bind(wx.EVT_MENU, self.onMultiStepImport, self.toolsMenuItem)
+		gui.mainFrame.sysTrayIcon.Bind(wx.EVT_MENU, self.onMultiStepImport, self.outWordolsMenuItem)
 		log.debug("#dbg. Finished __init__ of globalPlugin.")
 
 	def terminate(self):
@@ -241,14 +278,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if globalVars.appArgs.secure:
 			return
 		try:
-			self.toolsMenu.Remove(self.toolsMenuItem)
+			self.outWordolsMenu.Remove(self.outWordolsMenuItem)
 		except (RuntimeError, AttributeError):
 			log.debug("Could not remove the Import Jaws Dictionary menu item.")
 
 	def onMultiStepImport(self, evt):
-		"""Instantiates and manages the user interaction dialogs."""
+		"""Manages the user interaction dialogs and workflow."""
 		evt.Skip()  # FixMe: document why this is here
 		# Each of these has the potential to be cancelled by the user, which will raise UserCancelException
+		# Additionally, it was convenient to handle FileNotFoundError at this level.
 		try:
 			# FixMe: there should be a text dialog here explaining to the user what's about to happn.
 			# Step 1: get the source dictionary
@@ -256,9 +294,18 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			# Step 2: get the target dictionary
 			#: An int that is an index into self.NVDA_DICTS
 			targetDict = self.askForTarget()
-			# Read the source dictionary into a plugin level list
+			# Import from the selected file and handle the result
+			self.importFromFile(path + file)
+			# Determine which stats dialog to show, based on line count to record count comparison
+			if self.lineCount == self.recordCount:
+				self.confirmImportSimple(path + file)  # All lines are records
+			elif self.lineCount > self.recordCount:
+				self.confirmImportWithBads(path + file)  # Some lines aren't records
 		except UserCanceled:
 			return
+		except (FileNotFoundError, IOError) as fnf:
+			log.debug(f"#dbg. Got a file not found error for: {path}{file}")
+			return  # FixMe: need real dialog code here
 
 	def askForSource(self):
 		"""Shows a file chooser dialog asking for a Jaws dictionary.
@@ -309,15 +356,107 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			else:
 				return targetChooser.GetSelection()
 
-	def next(self):
-		pass
-		# Read the dictionary into a variable
-		#try:
-			#with open(path, "r") as dictFile:
-				# Do something
-				#except IOError:
-				# an error
+	def importFromFile(self, pathAndFile: str) -> None:
+		"""Reads the JDF. Installs it into self.importables.
+		Also stores bad records in self.unimportables, and generates self.lineCount and self.recordCount.
+		Has the slight potential to raise FileNotFoundError.
+		Accepts the path and filename of the JDF.
+		""" # FixMe: needs a better docstring
+		log.debug(f'#dbg. In importFromFile("{pathAndFile})')
+		#: Holds the list of validated speech dict entries
+		self.importables: collections.deque = collections.deque()
+		#: Holds the list of rejected lines
+		self.unimportables: list = []
+		#: Holds the count of lines found, no matter their disposition
+		self.lineCount: int = 0
+		#: Holds the count of successfully discovered records
+		self.recordCount: int = 0
+		# Open the JDF
+		with open(pathAndFile, "r") as jdf:
+			# Iterate each line of the file
+			for line in jdf:
+				lineCount += 1
+				# Attempt to put the line in the deque of records
+				try:
+					self.importables.Append(SpeechDictItem(line))
+					recordCount += 1
+				except ValueError:  # Raised if the line's format wasn't a record
+					unimportables.Append(line)  # Add it to the list to be handled later
 
+	def confirmImportSimple(self, pathAndFile: str) -> None:
+		"""Displays stats to the user on successful file read. Confirms continuance."""
+		with wx.MessageDialog(
+			gui.mainFrame,
+			# Translators: a message to the user showing stats, and asking whether to continue
+			_(
+				"Successfully found {0} Jaws speech dictionary records, in {1} lines from the file {2}.\n"
+				"Continue if that's what you expected, and you're ready to import them into NVDA's {3}.\n"
+			).format(self.recordCount, self.lineCount, pathAndFile, self.NVDA_DICTS[self.targetDict]),
+			# Translators: title of the Found Records Dialog
+			caption=_("Step 3: Confirm Import"),
+			style=wx.OK|wx.CANCEL
+		) as confirmationDialog:
+			# Translators: Re-label the "OK" button as "Continue"
+			confirmationDialog.SetOKLabel("&Continue")
+			# Show the dialog, and check for cancel
+			if confirmationDialog.ShowModal() == wx.ID_CANCEL:
+				raise UserCancelException
+			else:
+				return
+
+	def confirmImportsWithBads(self, pathAndFile: str) -> None:
+		"""Shows the import statistics in cases where there was a lines to records mismatch.
+		Asks the user whether to continue, cancel, or show the difficult lines.
+		"""
+		with wx.MessageDialog(
+			gui.mainFrame,
+			# Translators: message to the user with statistics and options
+			_(
+				"Out of {0} lines in file {1},\n"
+				"only {2} of them were recognized as valid Jaws speech dictionary entries.\n"
+				"\nYou can import those {2} records into NVDA's {3},\n"
+				"you can review the lines that weren't recognized then decide what to do,\n"
+				"or you can cancel the import."
+			).format(self.lineCount, pathAndFile, self.recordCount, self.NVDA_DICTS[self.targetDict]),
+			# Translators: title of the Found Records Dialog
+			caption=_("Step 3: Confirm or Review Import"),
+			style=wx.YES_NO|wx.CANCEL|wx.NO_DEFAULT
+		) as confirmationDialog:
+			# FixMe: this should react to False by showing a less user friendly, but meaningful, message
+			confirmationDialog.SetYesNoLabels(
+				# Translators: re-label the "Yes" button as "Review"
+				_("&Review"),
+				# Translators: re-label the "No" button as "Continue"
+				_("&Continue")
+			)
+			result = confirmationDialog.ShowModal()
+		if result == wx.ID_CANCEL:
+			raise UserCancelException
+		elif result == wx.ID_NO:  # Continue was clicked
+			return
+		# Else Review was clicked
+		# Translators: an explanatory HTML message to the user about dealing with the list of bad entries
+		msg = _(
+			"<p>Below you will find a list of {0} entries which were found in the file {1}, "
+			"but which were not recognized as Jaws speech dictionary records.<br/>\n"
+			"You can use normal Windows controls to select and copy these to the clipboard, so you can "
+			"save them in a file to try to fix them later, if they are supposed to be valid entries.</p>\n"
+			"<p>You may also <a href="mailto:luke@newanswertech.com">email them</a> to the add-on authors to "
+			"review, if you think this is a bug or that these entries should have been recognized.</p>\n"
+			"<p>To return to the import, press Alt+F4 to close this window.</p>\n&nbsp;<br/>\n<hr>\n<pre>\n"
+		).format(self.lineCount - self.recordCount, pathAndFile)
+		# Add each of the bad lines to the message
+		for line in self.unimportables:
+			msg += line + "\n"
+		msg += "</pre>"
+		# FixMe: eventually I would like to use some better kind of dialog for this.
+		ui.browseableMessage(
+			msg, isHtml=True,
+			# Translators: title of the dialog containing the list of JDF lines which couldn't be imported
+			title=_("Review Dictionary Entries That Can't Be Imported, Alt+F4 when done")
+		)
+
+	# Unused code
 	def onSetupImportDialog_old(self, evt):
 		"""Instantiates and manages the import setup dialog."""
 		log.debug("#dbg. In onSetupImportDialog.")
