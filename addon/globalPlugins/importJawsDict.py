@@ -375,11 +375,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		with open(pathAndFile, "r", encoding="utf-8") as jdf:
 			# Iterate each line of the file
 			for line in jdf:
-				lineCount += 1
+				self.lineCount += 1
 				# Attempt to put the line in the deque of records
 				try:
 					self.importables.Append(SpeechDictItem(line))
-					recordCount += 1
+					self.recordCount += 1
 				except ValueError:  # Raised if the line's format wasn't a record
 					unimportables.Append(line)  # Add it to the list to be handled later
 

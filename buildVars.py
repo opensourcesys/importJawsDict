@@ -26,7 +26,7 @@ addon_info = {
 	"addon_description": _("""Reads Jaws dictionary files, and adds their entries to one of the NVDA speech dictionaries.
 Start by selecting the "Import Jaws dictionary" entry from the NVDA Tools menu."""),
 	# version
-	"addon_version": "0.12-dev10",
+	"addon_version": "0.12-dev11",
 	# Author(s)
 	"addon_author": "Luke Davis <luke@newanswertech.com>, Brian Vogel <britechguy@gmail.com>",
 	# URL for the add-on documentation support
