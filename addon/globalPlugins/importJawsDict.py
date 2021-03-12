@@ -381,7 +381,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					self.importables.append(SpeechDictItem(line))
 					self.recordCount += 1
 				except ValueError:  # Raised if the line's format wasn't a record
-					unimportables.append(line)  # Add it to the list to be handled later
+					self.unimportables.append(line)  # Add it to the list to be handled later
 
 	def confirmImportSimple(self, pathAndFile: str) -> None:
 		"""Displays stats to the user on successful file read. Confirms continuance."""
