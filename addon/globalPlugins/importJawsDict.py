@@ -17,8 +17,9 @@ _TESTING_MODE = True
 
 import wx
 import gui
-import ntpath
 import re
+import codecs
+import ntpath
 import contextlib
 from collections import deque
 
@@ -35,11 +36,10 @@ try:#dbg
 except:#dbg
 	log.debug("#dbg. Failed to initTranslation.")
 
-#: importJawsDict Add-on config database
-config.conf.spec["importJawsDict"] = {
-	"lastPath": "boolean(default=False)",
-	"lastFile": "boolean(default=False)",
-}
+##: importJawsDict Add-on config database
+#config.conf.spec["importJawsDict"] = {
+#	"lastPath": "" # FixMe: needs correct config variable grammar
+#}
 
 class SpeechDictItem:
 	"""Objects of this class represent a single dictionary item during the transition from JDF to NVDA.
@@ -245,9 +245,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	#: Contains the path of the last dictionary opened
 	lastPath = ""
-	#: Contains the name of the last dictionary file opened
-	lastFile = ""
-
+	
 	def __init__(self):
 		"""Initializes the add-on by performing the following tasks:
 		- Checks whether running in secure mode, and stops running if so.
@@ -301,6 +299,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			# Import from the selected file and handle the result
 			self.importFromFile(file)
 			# Determine which stats dialog to show, based on line count to record count comparison
+			# These variables are initialized by self.importFromFile()
 			if self.lineCount == self.recordCount:
 				self.confirmImportSimple(file)  # All lines are records
 			elif self.lineCount > self.recordCount:
@@ -308,7 +307,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		except UserCanceled:
 			return
 		except (FileNotFoundError, IOError) as fnf:
-			log.debug(f"#dbg. Got a file not found error for: {path}{file}")
+			# FixMe: do something with fnf
+			log.debug(f"#dbg. Got a file not found error for: {file}\n{fnf}")
 			return  # FixMe: need real dialog code here
 
 	def askForSource(self) -> str:
@@ -320,7 +320,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			gui.mainFrame,
 			# Translators: the title of the Jaws dictionary file selector dialog.
 			_("Step 1: select a Jaws dictionary"),
-			self.lastPath, self.lastFile,
+			*ntpath.split(self.lastPath),
 			wildcard="Jaws Dictionary Files (*.jdf)|*.jdf|All files (*.*)|*.*",
 			style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST
 		) as sourceChooser:
@@ -360,13 +360,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			else:
 				return targetChooser.GetSelection()
 
-	def importFromFile(self, pathAndFile: str) -> None:
+	def importFromFile(self, path: str) -> None:
 		"""Reads the JDF. Installs it into self.importables.
 		Also stores bad records in self.unimportables, and generates self.lineCount and self.recordCount.
 		Has the slight potential to raise FileNotFoundError.
-		Accepts the path and filename of the JDF.
+		Accepts the path to a JDF file.
 		""" # FixMe: needs a better docstring
-		log.debug(f'#dbg. In importFromFile("{pathAndFile})')
+		log.debug(f'#dbg. In importFromFile("{path})')
 		#: Holds the list of validated speech dict entries
 		self.importables: deque = deque()
 		#: Holds the list of rejected lines
@@ -376,7 +376,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		#: Holds the count of successfully discovered records
 		self.recordCount: int = 0
 		# Open the JDF
-		with open(pathAndFile, "r", encoding="utf-8") as jdf:
+		with open(path, "r", encoding="utf-8") as jdf:
+			# If we got this far, this has become the last opened file, and it should be our new default
+			self.lastPath = path
 			# Iterate each line of the file
 			for line in jdf:
 				self.lineCount += 1
@@ -387,7 +389,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				except ValueError:  # Raised if the line's format wasn't a record
 					self.unimportables.append(line)  # Add it to the list to be handled later
 
-	def confirmImportSimple(self, pathAndFile: str) -> None:
+	def confirmImportSimple(self, path: str) -> None:
 		"""Displays stats to the user on successful file read. Confirms continuance."""
 		with wx.MessageDialog(
 			gui.mainFrame,
@@ -395,7 +397,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			_(
 				"Successfully found {0} Jaws speech dictionary records, in {1} lines from the file {2}.\n"
 				"Continue if that's what you expected, and you're ready to import them into NVDA's {3}.\n"
-			).format(self.recordCount, self.lineCount, pathAndFile, self.NVDA_DICTS[self.targetDict]),
+			).format(self.recordCount, self.lineCount, path, self.NVDA_DICTS[self.targetDict]),
 			# Translators: title of the Found Records Dialog
 			caption=_("Step 3: Confirm Import"),
 			style=wx.OK|wx.CANCEL
