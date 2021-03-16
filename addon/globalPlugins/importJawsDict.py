@@ -47,13 +47,16 @@ def guessEncoding(path: str) -> str:
 	with open(path, "rb") as f:
 		data = f.read(5)
 	if data.startswith(b"\xEF\xBB\xBF"):  # utf-8 BOM
+		log.debug("#dbg. Guessed file type utf-8.")
 		return "utf-8"
 	elif data.startswith(b"\xFF\xFE") or data.startswith(b"\xFE\xFF"):  # utf-16 BOM
+		log.debug("#dbg. Guessed file type utf-16.")
 		return "utf-16"
 	else:  # Guess test for non-BOM utf-8 on Windows
 		try:
 			with open(path, "r", encoding="utf-8") as f:
 				preview = f.read(222222)
+				log.debug("#dbg. Guessed file type utf-8 as a last resort.")
 				return "utf-8"
 		except:
 			return locale.getdefaultlocale()[1]  # Reasonable guess
