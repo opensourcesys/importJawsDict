@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Import Jaws Dictionary (importJawsDict.py), version 0.X-dev
 # A global plugin which provides a tool to import Jaws speech dictionaries into NVDA's dictionaries.
 # Written by Luke Davis, based on regular expression development performed by Brian Vogel.
