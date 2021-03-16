@@ -19,6 +19,7 @@ import wx
 import gui
 import re
 import codecs
+import locale
 import ntpath
 import contextlib
 from collections import deque
@@ -35,6 +36,26 @@ try:#dbg
 	log.debug("#dbg. Can translate now.")
 except:#dbg
 	log.debug("#dbg. Failed to initTranslation.")
+
+# We need to do some charset auto-detecting. Very sadly, NVDA doesn't include the chardet module.
+def guessEncoding(path):
+	"""A Poor-man's chardet.universalDetector function.
+	Takes a path to a file, and tries to use its BOM to figure out what its charset is,
+	which it returns as a string.
+	""" # FixMe: write a real docstring
+	with open(path, "rb") as f:
+		data = f.read(5)
+	if data.startswith(b"\xEF\xBB\xBF"):  # utf-8 BOM
+		return "utf-8"
+	elif data.startswith(b"\xFF\xFE") or data.startswith(b"\xFE\xFF"):  # utf-16 BOM
+		return "utf-16"
+	else:  # Guess test for non-BOM utf-8 on Windows
+		try:
+			with open(path, "r", encoding="utf-8") as f:
+				preview = f.read(222222)
+				return "utf-8"
+		except:
+			return locale.getdefaultlocale()[1]  # Reasonable guess
 
 ##: importJawsDict Add-on config database
 #config.conf.spec["importJawsDict"] = {
@@ -243,9 +264,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		_("Temporary dictionary")
 	)
 
-	#: Contains the path of the last dictionary opened
-	lastPath = ""
-	
 	def __init__(self):
 		"""Initializes the add-on by performing the following tasks:
 		- Checks whether running in secure mode, and stops running if so.
@@ -253,24 +271,23 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		"""
 		log.debug("#dbg. In globalPlugin.__init__")
 		super(GlobalPlugin, self).__init__()
-		log.debug("#dbg. After super call in __init__ of globalPlugin.")
 		# Stop initializing if running in secure mode
 		if globalVars.appArgs.secure:
-			log.debug("#dbg. Running in secure mode, bailing.")
 			return
-		else: #dbg
-			log.debug("#dbg. Not running in secure mode. Anti-bailing.")
+		#: Contains the path of the last dictionary opened
+		self.lastPath = ""
 		# Create an entry on the NVDA Tools menu
-		self.outWordolsMenu = gui.mainFrame.sysTrayIcon.toolsMenu
-		self.outWordolsMenuItem = self.outWordolsMenu.Append(
+		# FixMe: do we need this copy? Everyone else does it, but I don't know why
+		self.toolsMenu = gui.mainFrame.sysTrayIcon.toolsMenu
+		#: This add-on's Tools menu entry
+		self.toolsMenuItem = self.toolsMenu.Append(
 			wx.ID_ANY, kind=wx.ITEM_NORMAL,
 			# Translators: item in the NVDA Tools menu to open the Jaws dictionary import dialog
 			item=_("Import &Jaws Dictionary..."),
 			# Translators: tooltip for the "Import Jaws Dictionary" Tools menu item
 			helpString=_("Import a Jaws speech dictionary into an NVDA speech dictionary")
 		)
-		gui.mainFrame.sysTrayIcon.Bind(wx.EVT_MENU, self.onMultiStepImport, self.outWordolsMenuItem)
-		log.debug("#dbg. Finished __init__ of globalPlugin.")
+		gui.mainFrame.sysTrayIcon.Bind(wx.EVT_MENU, self.onMultiStepImport, self.toolsMenuItem)
 
 	def terminate(self):
 		"""Cleans up the dialog(s)."""
@@ -376,7 +393,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		#: Holds the count of successfully discovered records
 		self.recordCount: int = 0
 		# Open the JDF
-		with open(path, "r", encoding="utf-8") as jdf:
+		with codecs.open(path, mode="r", encoding=guessEncoding(path)) as jdf:
 			# If we got this far, this has become the last opened file, and it should be our new default
 			self.lastPath = path
 			# Iterate each line of the file
