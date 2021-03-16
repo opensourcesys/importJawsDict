@@ -17,9 +17,9 @@ _TESTING_MODE = True
 
 import wx
 import gui
-import re
-import codecs
 import locale
+import codecs
+import re
 import ntpath
 import contextlib
 from collections import deque
@@ -38,7 +38,7 @@ except:#dbg
 	log.debug("#dbg. Failed to initTranslation.")
 
 # We need to do some charset auto-detecting. Very sadly, NVDA doesn't include the chardet module.
-def guessEncoding(path):
+def guessEncoding(path: str) -> str:
 	"""A Poor-man's chardet.universalDetector function.
 	Takes a path to a file, and tries to use its BOM to figure out what its charset is,
 	which it returns as a string.
@@ -57,6 +57,7 @@ def guessEncoding(path):
 		except:
 			return locale.getdefaultlocale()[1]  # Reasonable guess
 
+# Might decide not to use this.
 ##: importJawsDict Add-on config database
 #config.conf.spec["importJawsDict"] = {
 #	"lastPath": "" # FixMe: needs correct config variable grammar
@@ -183,7 +184,7 @@ class SpeechDictItem:
 		log.debug(f"#dbg. Processed: {self.__dict__}")
 
 
-# Not currently used
+# Not currently used; kept in case I want to switch back to a singular dialog.
 class DictionaryChooserPanel(wx.Panel):
 	"""Generates a wx.Panel containing elements for choosing a Jaws dictionary."""
 
@@ -195,7 +196,7 @@ class DictionaryChooserPanel(wx.Panel):
 		self.jDict = wx.TextCtrl(self, wx.ID_ANY)
 		sizer.Add(self.jDict)
 
-# Not currently used
+# Not currently used; kept in case I want to switch back to a singular dialog.
 class SetupImportDialog(wx.Dialog):
 	"""Creates and populates the import setup dialog."""
 
@@ -290,14 +291,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		gui.mainFrame.sysTrayIcon.Bind(wx.EVT_MENU, self.onMultiStepImport, self.toolsMenuItem)
 
 	def terminate(self):
-		"""Cleans up the dialog(s)."""
-		log.debug("#dbg. Terminating.")
-		super(GlobalPlugin, self).terminate()
+		"""Cleans up the menu entry."""
 		# Check whether running in secure mode, and exit if so
 		if globalVars.appArgs.secure:
 			return
+		super(GlobalPlugin, self).terminate()
 		try:
-			self.outWordolsMenu.Remove(self.outWordolsMenuItem)
+			# FixMe: if I go without this in __init__, fix it here too.
+			self.toolsMenu.Remove(self.toolsMenuItem)
 		except (RuntimeError, AttributeError):
 			log.debug("Could not remove the Import Jaws Dictionary menu item.")
 
@@ -348,7 +349,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				# Return the selected file
 				return ntpath.normpath(sourceChooser.GetPath())
 
-	def askForTarget(self):
+	def askForTarget(self) -> int:
 		"""Shows a dialog with a list of possible NVDA dictionaries for the user to choose from.
 		Raises UserCanceled if the user does.
 		Returns the result (an index into self.NVDA_DICTS).
@@ -384,9 +385,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		Accepts the path to a JDF file.
 		""" # FixMe: needs a better docstring
 		log.debug(f'#dbg. In importFromFile("{path})')
-		#: Holds the list of validated speech dict entries
+		#: Holds the collection of validated speech dict entries
 		self.importables: deque = deque()
-		#: Holds the list of rejected lines
+		#: Holds the collection of rejected lines
 		self.unimportables: list = []
 		#: Holds the count of lines found, no matter their disposition
 		self.lineCount: int = 0
@@ -395,7 +396,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# Open the JDF
 		with codecs.open(path, mode="r", encoding=guessEncoding(path)) as jdf:
 			# If we got this far, this has become the last opened file, and it should be our new default
-			self.lastPath = path
+			self.lastPath: str = path
 			# Iterate each line of the file
 			for line in jdf:
 				self.lineCount += 1
